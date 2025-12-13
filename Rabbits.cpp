@@ -1,4 +1,4 @@
-﻿#include "Rabbits.h"
+#include "Rabbits.h"
 #include <iostream>
 #include <cstdlib>
 #include <ctime>
@@ -236,6 +236,92 @@ void Rabbits::distributeSpecialFood(int total_food) {
     MPI_Barrier(MPI_COMM_WORLD);
 }
 
+void Rabbits::exchangeWithNeighbors(int exchanges) {
+    for (int i = 0; i < exchanges; i++) {
+        int left_carrots;
+
+        MPI_Sendrecv(&carrots, 1, MPI_INT, left_neighbor, 0,
+            &left_carrots, 1, MPI_INT, right_neighbor, 0,
+            MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+        if (left_carrots < carrots && carrots > 0) {
+            carrots--;
+            int gift = 1;
+            MPI_Send(&gift, 1, MPI_INT, left_neighbor, 1, MPI_COMM_WORLD);
+        }
+        else {
+            int zero = 0;
+            MPI_Send(&zero, 1, MPI_INT, left_neighbor, 1, MPI_COMM_WORLD);
+        }
+
+        int received_from_right;
+        MPI_Recv(&received_from_right, 1, MPI_INT, right_neighbor, 1,
+            MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        carrots += received_from_right;
+
+        int right_carrots;
+
+        MPI_Sendrecv(&carrots, 1, MPI_INT, right_neighbor, 2,
+            &right_carrots, 1, MPI_INT, left_neighbor, 2,
+            MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+        if (right_carrots < carrots && carrots > 0) {
+            carrots--;
+            int gift = 1;
+            MPI_Send(&gift, 1, MPI_INT, right_neighbor, 3, MPI_COMM_WORLD);
+        }
+        else {
+            int zero = 0;
+            MPI_Send(&zero, 1, MPI_INT, right_neighbor, 3, MPI_COMM_WORLD);
+        }
+
+        int received_from_left;
+        MPI_Recv(&received_from_left, 1, MPI_INT, left_neighbor, 3,
+            MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        carrots += received_from_left;
+
+        MPI_Barrier(MPI_COMM_WORLD);
+    }
+}
+
+void Rabbits::collectAndCalculateVariance() {
+    if (rank == 0) {
+        std::vector<int> all_carrots(size);
+        all_carrots[0] = carrots;
+
+        for (int i = 1; i < size; i++) {
+            MPI_Recv(&all_carrots[i], 1, MPI_INT, i, 0,
+                MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        }
+
+        std::cout << "\nCarrot distribution after exchange:" << std::endl;
+        for (int i = 0; i < size; i++) {
+            std::cout << "Rabbit " << i << ": " << all_carrots[i] << " kg" << std::endl;
+        }
+
+        double sum = 0;
+        for (int i = 0; i < size; i++) {
+            sum += all_carrots[i];
+        }
+        double mean = sum / size;
+
+        double variance = 0;
+        for (int i = 0; i < size; i++) {
+            variance += (all_carrots[i] - mean) * (all_carrots[i] - mean);
+        }
+        variance /= size;
+
+        std::cout << "\nResults:" << std::endl;
+        std::cout << "Mean carrot count: " << mean << " kg" << std::endl;
+        std::cout << "Variance: " << variance << std::endl;
+        std::cout << "Standard deviation: " << sqrt(variance) << std::endl;
+        std::cout << "Total carrots: " << sum << " kg" << std::endl;
+
+    }
+    else {
+        MPI_Send(&carrots, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
+    }
+}
 
 int Rabbits::getCarrots() const {
     return carrots;
