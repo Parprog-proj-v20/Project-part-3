@@ -2,15 +2,15 @@
 #define RABBITS_H
 
 #include <mpi.h>
-
+//
 class Rabbits {
 private:
-    int rank;            // ID зайца
-    int size;            // Всего зайцев
-    int carrots;         // Сколько моркови у текущего зайца
+    int rank;            // ID Г§Г Г©Г¶Г 
+    int size;            // Г‚Г±ГҐГЈГ® Г§Г Г©Г¶ГҐГў
+    int carrots;         // Г‘ГЄГ®Г«ГјГЄГ® Г¬Г®Г°ГЄГ®ГўГЁ Гі ГІГҐГЄГіГ№ГҐГЈГ® Г§Г Г©Г¶Г 
 
-    int left_neighbor;   // ID левого соседа
-    int right_neighbor;  // ID правого соседа
+    int left_neighbor;   // ID Г«ГҐГўГ®ГЈГ® Г±Г®Г±ГҐГ¤Г 
+    int right_neighbor;  // ID ГЇГ°Г ГўГ®ГЈГ® Г±Г®Г±ГҐГ¤Г 
 
 public:
     Rabbits();
@@ -23,5 +23,6 @@ public:
     int getCarrots() const;
     int getRank() const;
 };
+
 
 #endif
