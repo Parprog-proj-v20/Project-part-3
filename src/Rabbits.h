@@ -5,12 +5,12 @@
 
 class Rabbits {
 private:
-    int rank;            // ID зайца
-    int size;            // Всего зайцев
-    int carrots;         // Сколько моркови у текущего зайца
+    int rank;
+    int size;
+    int carrots;
 
-    int left_neighbor;   // ID левого соседа
-    int right_neighbor;  // ID правого соседа
+    int left_neighbor;
+    int right_neighbor;
 
 public:
     Rabbits();
@@ -23,5 +23,6 @@ public:
     int getCarrots() const;
     int getRank() const;
 };
+
 
 #endif
