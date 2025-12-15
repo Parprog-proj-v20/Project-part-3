@@ -16,13 +16,18 @@ add_executable(rabbits src/main.cpp)
 target_link_libraries(rabbits rabbits_lib MPI::MPI_CXX)
 
 set(TEST_SOURCES
+    boundary_test
+    completion_test
+    convergence_test
     deadlock_test
     distribution_test
     exchange_test
     initialize_test
+    non-negativity_test
     performance_test
-    stress_test
-    validation_test
+    statistics_test
+    values_test
+    zero_carrots_test
 )
 
 foreach(test ${TEST_SOURCES})
@@ -47,4 +52,5 @@ add_test(
 set_tests_properties(system_test
     PROPERTIES WILL_FAIL TRUE
 )
+
 
