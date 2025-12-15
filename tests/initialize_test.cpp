@@ -1,5 +1,3 @@
-#include <mpi.h>
-#include <cassert>
 #include <iostream>
 #include "Rabbits.h"
 
@@ -10,18 +8,23 @@ int main(int argc, char** argv) {
     r.initialize();
 
     int carrots = r.getCarrots();
-    assert(carrots >= 1 && carrots <= 4);
 
     int rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-    assert(size == 20);
-
     if (rank == 0) {
         std::cout << "\n[ INITIALIZATION TEST ]\n";
-        std::cout << "Num of proccesses (rabbits): 20\n";
-        std::cout << "Num of carrots: [1; 4]\n";
+        if (size == 20) std::cout << "Num of proccesses (rabbits) is 20\n";
+        else {
+            std::cerr << "[FAILED] Num of proccesses (rabbits) is not 20\n";
+            return 1;
+        }
+        if (carrots >= 0) std::cout << "Num of carrots is in [1; 4]\n";
+        else {
+            std::cerr << "[FAILED] Num of carrots is out of [1; 4]\n";
+            return 1;
+        }
         std::cout << "[OK] Initialization test passed\n";
     }
 

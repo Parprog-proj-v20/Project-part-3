@@ -1,4 +1,3 @@
-#include <mpi.h>
 #include <iostream>
 #include "Rabbits.h"
 
@@ -23,7 +22,7 @@ int main(int argc, char** argv) {
         std::cout << "\n[ DISTRIBUTION TEST ]\n";
         if (after >= 0) std::cout << "Total carrots after is positive\n";
         else {
-            std::cerr << "Total carrots after is negative\n";
+            std::cerr << "[FAILED] Total carrots after is negative\n";
             return 1;
         }
 

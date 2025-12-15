@@ -1,4 +1,3 @@
-#include <mpi.h>
 #include <iostream>
 #include "Rabbits.h"
 
@@ -24,7 +23,7 @@ int main(int argc, char** argv) {
         std::cout << "Execution time: " << max_time << " sec\n";
 
         if (max_time > 10.0) {
-            std::cout << "More than 10 seconds passed; possible deadlock!\n";
+            std::cout << "[FAILED] More than 10 seconds passed; possible deadlock!\n";
             return 1;
         }
         else {

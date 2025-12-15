@@ -1,11 +1,10 @@
-#include <mpi.h>
 #include <iostream>
 #include "Rabbits.h"
 
 int main(int argc, char** argv) {
     MPI_Init(&argc, &argv);
 
-    int food[] = { 500, 1000, 1000 };
+    int food[] = { 500, 1000 };
     int exchanges[] = { 20, 40, 75 };
 
     for (int f : food) {
