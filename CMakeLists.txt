@@ -38,12 +38,13 @@ foreach(test ${TEST_SOURCES})
 endforeach()
 
 add_test(
-    NAME system_wrong_process_count
+    NAME system_test
     COMMAND ${MPIEXEC_EXECUTABLE}
             ${MPIEXEC_NUMPROC_FLAG} 10
             $<TARGET_FILE:rabbits>
 )
 
-set_tests_properties(system_wrong_process_count
+set_tests_properties(system_test
     PROPERTIES WILL_FAIL TRUE
 )
+
