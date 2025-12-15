@@ -6,7 +6,7 @@
 #ifdef _WIN32 
 #include <windows.h>
 #endif
-
+//
 void runSimulation() {
     Rabbits rabbit;
     rabbit.initialize();
@@ -60,4 +60,5 @@ int main(int argc, char** argv) {
 
     MPI_Finalize();
     return 0;
+
 }
