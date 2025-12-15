@@ -23,6 +23,13 @@ left_neighbor(0), right_neighbor(0) {
 
 Rabbits::~Rabbits() {}
 
+/**
+ * @brief Инициализация параметров каждого процесса-кролика
+ * 
+ * Устанавливает случайное начальное количество моркови (от 1 до 4 кг),
+ * определяет левого и правого соседей в кольцевой топологии.
+ * Использует барьер MPI для синхронизации всех процессов перед началом работы.
+ */
 void Rabbits::initialize() {
     srand(time(NULL) + rank);
     carrots = (rand() % 4) + 1;
@@ -33,6 +40,11 @@ void Rabbits::initialize() {
     MPI_Barrier(MPI_COMM_WORLD);
 }
 
+/**
+ * @brief Распределение спецпайка от процесса 0 к остальным процессам
+ * 
+ * @param total_food Общее количество моркови для распределения 
+ */
 void Rabbits::distributeSpecialFood(int total_food) {
     if (rank == 0) {
         std::cout << "Starting distribution of " << total_food << " kg" << std::endl;
@@ -40,9 +52,9 @@ void Rabbits::distributeSpecialFood(int total_food) {
 
     MPI_Barrier(MPI_COMM_WORLD);
 
-    int distributed = 0;
-    int my_requests = 0;
-    int my_grants = 0;
+    int distributed = 0;    // Счетчик распределенной еды (только для процесса 0)
+    int my_requests = 0;    // Счетчик отправленных запросов (для остальных процессов)
+    int my_grants = 0;      // Счетчик полученных удовлетворенных запросов
 
     srand(time(NULL) + rank * 1000);
 
@@ -153,7 +165,8 @@ void Rabbits::distributeSpecialFood(int total_food) {
     }
 
     MPI_Barrier(MPI_COMM_WORLD);
-
+    
+    // Сбор статистики по всем процессам
     std::vector<int> all_carrots(size);
     MPI_Gather(&carrots, 1, MPI_INT, all_carrots.data(), 1, MPI_INT, 0, MPI_COMM_WORLD);
 
@@ -166,10 +179,17 @@ void Rabbits::distributeSpecialFood(int total_food) {
     }
 }
 
+/**
+ * @brief Обмен морковью между соседними процессами в кольцевой топологии
+ * 
+ * Выполняется в два этапа за одну итерацию: сначала с левым, затем с правым соседом.
+ *
+ * @param exchanges Количество итераций обмена
+ */
 void Rabbits::exchangeWithNeighbors(int exchanges) {
     for (int i = 0; i < exchanges; i++) {
         int left_carrots;
-
+// Одновременная отправка своего количества и получение от правого соседа
         MPI_Sendrecv(&carrots, 1, MPI_INT, left_neighbor, 0,
             &left_carrots, 1, MPI_INT, right_neighbor, 0,
             MPI_COMM_WORLD, MPI_STATUS_IGNORE);
@@ -214,6 +234,14 @@ void Rabbits::exchangeWithNeighbors(int exchanges) {
     }
 }
 
+/**
+ * @brief Сбор данных от всех процессов и вычисление статистики
+ * 
+ * Процесс 0 собирает количество моркови у всех процессов, вычисляет
+ * среднее значение, дисперсию и стандартное отклонение распределения.
+ * 
+ * Выводит результаты только на процессе 0.
+ */
 void Rabbits::collectAndCalculateVariance() {
     std::vector<int> all_carrots(size);
     
@@ -248,3 +276,4 @@ int Rabbits::getCarrots() const {
 int Rabbits::getRank() const {
     return rank;
 }
+
