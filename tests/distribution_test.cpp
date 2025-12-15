@@ -10,11 +10,10 @@ int main(int argc, char** argv) {
     int before = r.getCarrots();
     int total_before;
     MPI_Reduce(&before, &total_before, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
-
+    
     r.distributeSpecialFood(300);
 
     int after = r.getCarrots();
-
     int total_after;
     MPI_Reduce(&after, &total_after, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
 
@@ -30,7 +29,7 @@ int main(int argc, char** argv) {
         std::cout << "Total carrots before: " << total_before << std::endl;
         std::cout << "Total carrots after: " << total_after << std::endl;
 
-        if (total_after != total_before) {
+        if (total_after != total_before + 300) {
             std::cerr << "[FAILED] Distribution test NOT passed\n";
             return 1;
         }

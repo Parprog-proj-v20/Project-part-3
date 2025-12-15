@@ -15,7 +15,6 @@ int main(int argc, char** argv) {
     r.exchangeWithNeighbors(10);
 
     int after = r.getCarrots();
-
     int total_after;
     MPI_Reduce(&after, &total_after, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
 
