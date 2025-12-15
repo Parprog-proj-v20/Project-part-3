@@ -5,13 +5,14 @@
 #include <cmath>
 #include <vector>
 #include <iomanip>
+#include <queue> 
 
 #ifdef _WIN32
 #include <windows.h>
 #endif
 
-const int REQUEST_TAG = 0;    // Запрос моркови
-const int RESPONSE_TAG = 1;   // Ответ с морковью
+const int REQUEST_TAG = 0; 
+const int RESPONSE_TAG = 1; 
 const int END_TAG = 2;
 
 Rabbits::Rabbits() : rank(0), size(0), carrots(0),
@@ -34,206 +35,135 @@ void Rabbits::initialize() {
 
 void Rabbits::distributeSpecialFood(int total_food) {
     if (rank == 0) {
-        std::cout << "Starting special food distribution (" << total_food << " kg)" << std::endl;
-        std::cout << "Rabbits will request carrots multiple times..." << std::endl;
+        std::cout << "Starting distribution of " << total_food << " kg" << std::endl;
     }
 
     MPI_Barrier(MPI_COMM_WORLD);
 
-    int distributed = 0;  // Сколько уже раздали
-    int my_requests = 0;  // Сколько раз заяц просил
-    int my_grants = 0;    // Сколько раз зайцу дали
+    int distributed = 0;
+    int my_requests = 0;
+    int my_grants = 0;
 
-    srand(time(NULL) + rank);
+    srand(time(NULL) + rank * 1000);
 
-    while (distributed < total_food) {
-        int wants_carrots = (rand() % 2) == 0;
-
-        if (wants_carrots) {
-            my_requests++;
-            
-            if (rank == 0) {
-                if (distributed < total_food) {
-                    carrots++;
-                    distributed++;
-                    my_grants++;
-
-                    if (distributed % 100 == 0) {
-                        std::cout << "Distributed: " << distributed << "/" << total_food
-                            << " kg" << std::endl;
-                    }
-                }
-            }
-            else {
-
-                int request = 1;
-                MPI_Send(&request, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
-
-                // Ждем ответ с таймаутом
-                int response;
-                MPI_Status status;
-                int got_response = 0;
-
-                // Пробуем получить ответ несколько раз
-                for (int attempt = 0; attempt < 10; attempt++) {
-                    int flag;
-                    MPI_Iprobe(0, 1, MPI_COMM_WORLD, &flag, &status);
-                    if (flag) {
-                        MPI_Recv(&response, 1, MPI_INT, 0, 1, MPI_COMM_WORLD, &status);
-                        if (response == 1) {
-                            carrots++;
-                            my_grants++;
-                        }
-                        got_response = 1;
-                        break;
-                    }
-                    double wait_start = MPI_Wtime();
-                    while (MPI_Wtime() - wait_start < 0.001) {}
-                }
-            }
-        }
-
-        if (rank == 0) {
-            for (int check = 0; check < 5; check++) {
-                MPI_Status status;
-                int flag;
-
-                MPI_Iprobe(MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &flag, &status);
-
-                if (flag && distributed < total_food) {
-                    int request;
-                    MPI_Recv(&request, 1, MPI_INT, status.MPI_SOURCE, 0,
-                        MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-
-                    int response = 1;
-                    MPI_Send(&response, 1, MPI_INT, status.MPI_SOURCE, 1, MPI_COMM_WORLD);
-
-                    distributed++;
-
-                    if (distributed % 100 == 0) {
-                        std::cout << "Distributed: " << distributed << "/" << total_food
-                            << " kg" << std::endl;
-                    }
-                }
-                else {
-                    break; 
-                }
-            }
-        }
-
-        int global_distributed;
-        MPI_Allreduce(&distributed, &global_distributed, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-        distributed = global_distributed;
-
-        if (distributed >= total_food) {
-            break;
-        }
-
-        double wait_start = MPI_Wtime();
-        while (MPI_Wtime() - wait_start < 0.0005) {}
-
-        MPI_Barrier(MPI_COMM_WORLD);
-    }
     if (rank == 0) {
-        std::cout << "\nDistribution completed, sending termination signals..." << std::endl;
+        std::queue<int> request_queue;
+        bool requests_active = true;
 
-        // Обрабатываем возможные оставшиеся запросы перед отправкой сигналов
-        double cleanup_start = MPI_Wtime();
-        while (MPI_Wtime() - cleanup_start < 0.05) {
+        while (distributed < total_food) {
             MPI_Status status;
             int has_request = 0;
-            MPI_Iprobe(MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &has_request, &status);
+            MPI_Iprobe(MPI_ANY_SOURCE, REQUEST_TAG, MPI_COMM_WORLD, &has_request, &status);
 
-            if (has_request) {
+            while (has_request) {
                 int request;
-                MPI_Recv(&request, 1, MPI_INT, status.MPI_SOURCE, 0,
-                    MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                MPI_Recv(&request, 1, MPI_INT, status.MPI_SOURCE,
+                    REQUEST_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
-                // Отправляем 0 так как распределение завершено
-                int response = 0;
-                MPI_Send(&response, 1, MPI_INT, status.MPI_SOURCE, 1, MPI_COMM_WORLD);
+                request_queue.push(status.MPI_SOURCE);
+
+                MPI_Iprobe(MPI_ANY_SOURCE, REQUEST_TAG, MPI_COMM_WORLD, &has_request, &status);
             }
+
+            while (!request_queue.empty() && distributed < total_food) {
+                int rabbit = request_queue.front();
+                request_queue.pop();
+
+                int response = 1;
+                if (rabbit == 0) {
+                    carrots++; 
+                }
+                else {
+                    MPI_Send(&response, 1, MPI_INT, rabbit, RESPONSE_TAG, MPI_COMM_WORLD);
+                }
+
+                distributed++;
+                if (distributed % 100 == 0) {
+                    std::cout << "Distributed: " << distributed << "/" << total_food
+                        << " kg" << std::endl;
+                }
+            }
+
+            if ((rand() % 10) < 3 && distributed < total_food) { 
+                carrots++;
+                distributed++;
+            }
+
+            double wait_start = MPI_Wtime();
+            while (MPI_Wtime() - wait_start < 0.00001) {}
         }
 
         for (int i = 1; i < size; i++) {
             int end_signal = -1;
-            MPI_Send(&end_signal, 1, MPI_INT, i, 2, MPI_COMM_WORLD); 
+            MPI_Send(&end_signal, 1, MPI_INT, i, END_TAG, MPI_COMM_WORLD);
         }
 
-        std::cout << "Termination signals sent" << std::endl;
     }
     else {
-        int finished = 0;
-        while (!finished) {
-            int has_end_signal = 0;
-            MPI_Status status;
-            MPI_Iprobe(0, 2, MPI_COMM_WORLD, &has_end_signal, &status);
+        bool finished = false;
+        srand(time(NULL) + rank * 1000);
 
-            if (has_end_signal) {
+        while (!finished) {
+            if ((rand() % 100) < 20) { 
+                my_requests++;
+
+                int request = 1;
+                MPI_Request send_req;
+                MPI_Isend(&request, 1, MPI_INT, 0, REQUEST_TAG,
+                    MPI_COMM_WORLD, &send_req);
+
+                bool got_response = false;
+                double start_time = MPI_Wtime();
+
+                while (!got_response && (MPI_Wtime() - start_time < 0.1)) {
+                    MPI_Status status;
+                    int has_response = 0;
+                    MPI_Iprobe(0, RESPONSE_TAG, MPI_COMM_WORLD, &has_response, &status);
+
+                    if (has_response) {
+                        int response;
+                        MPI_Recv(&response, 1, MPI_INT, 0, RESPONSE_TAG,
+                            MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+                        if (response == 1) {
+                            carrots++;
+                            my_grants++;
+                        }
+                        got_response = true;
+                    }
+                }
+
+                MPI_Request_free(&send_req);
+            }
+
+            MPI_Status status;
+            int has_end = 0;
+            MPI_Iprobe(0, END_TAG, MPI_COMM_WORLD, &has_end, &status);
+
+            if (has_end) {
                 int end_signal;
-                MPI_Recv(&end_signal, 1, MPI_INT, 0, 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                finished = 1;
-                break;
+                MPI_Recv(&end_signal, 1, MPI_INT, 0, END_TAG,
+                    MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                finished = true;
             }
 
             double wait_start = MPI_Wtime();
-            while (MPI_Wtime() - wait_start < 0.001) {} 
+            while (MPI_Wtime() - wait_start < 0.0001) {}
         }
     }
 
     MPI_Barrier(MPI_COMM_WORLD);
 
-    if (rank == 0) {
-        std::cout << "\n=== SPECIAL FOOD DISTRIBUTION COMPLETED ===" << std::endl;
-        std::cout << "Total distributed: " << distributed << " kg" << std::endl;
-    }
-
-    std::vector<int> all_requests(size);
-    std::vector<int> all_grants(size);
     std::vector<int> all_carrots(size);
-
-    MPI_Gather(&my_requests, 1, MPI_INT, all_requests.data(), 1, MPI_INT, 0, MPI_COMM_WORLD);
-    MPI_Gather(&my_grants, 1, MPI_INT, all_grants.data(), 1, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Gather(&carrots, 1, MPI_INT, all_carrots.data(), 1, MPI_INT, 0, MPI_COMM_WORLD);
 
     if (rank == 0) {
-        std::cout << "\n=== DISTRIBUTION STATISTICS ===" << std::endl;
-        std::cout << "Rabbit | Requests | Granted | Success Rate | Total Carrots" << std::endl;
-
-        int total_requests = 0;
-        int total_grants = 0;
-
+        int total = 0;
         for (int i = 0; i < size; i++) {
-            double success_rate = (all_requests[i] > 0) ?
-                (100.0 * all_grants[i] / all_requests[i]) : 0.0;
-
-            std::cout << std::setw(6) << i << " | "
-                << std::setw(8) << all_requests[i] << " | "
-                << std::setw(7) << all_grants[i] << " | "
-                << std::setw(11) << std::fixed << std::setprecision(1) << success_rate << "% | "
-                << std::setw(13) << all_carrots[i] << std::endl;
-
-            total_requests += all_requests[i];
-            total_grants += all_grants[i];
+            total += all_carrots[i];
         }
-
-        double overall_success_rate = (total_requests > 0) ?
-            (100.0 * total_grants / total_requests) : 0.0;
-
-        std::cout << "TOTAL  | "
-            << std::setw(8) << total_requests << " | "
-            << std::setw(7) << total_grants << " | "
-            << std::setw(11) << std::fixed << std::setprecision(1)
-            << overall_success_rate << "% | "
-            << "             " << std::endl;
+        std::cout << "Total after distribution: " << total << " kg" << std::endl;
     }
-    else {
-        MPI_Gather(&my_requests, 1, MPI_INT, nullptr, 0, MPI_INT, 0, MPI_COMM_WORLD);
-        MPI_Gather(&my_grants, 1, MPI_INT, nullptr, 0, MPI_INT, 0, MPI_COMM_WORLD);
-        MPI_Gather(&carrots, 1, MPI_INT, nullptr, 0, MPI_INT, 0, MPI_COMM_WORLD);
-    }
-
-    MPI_Barrier(MPI_COMM_WORLD);
 }
 
 void Rabbits::exchangeWithNeighbors(int exchanges) {
@@ -285,20 +215,11 @@ void Rabbits::exchangeWithNeighbors(int exchanges) {
 }
 
 void Rabbits::collectAndCalculateVariance() {
+    std::vector<int> all_carrots(size);
+    
+    MPI_Gather(&carrots, 1, MPI_INT, all_carrots.data(), 1, MPI_INT, 0, MPI_COMM_WORLD);
+    
     if (rank == 0) {
-        std::vector<int> all_carrots(size);
-        all_carrots[0] = carrots;
-
-        for (int i = 1; i < size; i++) {
-            MPI_Recv(&all_carrots[i], 1, MPI_INT, i, 0,
-                MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        }
-
-        std::cout << "\nCarrot distribution after exchange:" << std::endl;
-        for (int i = 0; i < size; i++) {
-            std::cout << "Rabbit " << i << ": " << all_carrots[i] << " kg" << std::endl;
-        }
-
         double sum = 0;
         for (int i = 0; i < size; i++) {
             sum += all_carrots[i];
@@ -316,10 +237,6 @@ void Rabbits::collectAndCalculateVariance() {
         std::cout << "Variance: " << variance << std::endl;
         std::cout << "Standard deviation: " << sqrt(variance) << std::endl;
         std::cout << "Total carrots: " << sum << " kg" << std::endl;
-
-    }
-    else {
-        MPI_Send(&carrots, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
     }
 }
 
