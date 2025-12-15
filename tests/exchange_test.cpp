@@ -23,13 +23,19 @@ int main(int argc, char** argv) {
     if (r.getRank() == 0) {
         std::cout << "\n[ EXCHANGE TEST ]\n";
         if (after >= 0) std::cout << "Total carrots after is positive\n";
-        else std::cerr << "Total carrots after is negative\n";
+        else {
+            std::cerr << "Total carrots after is negative\n";
+            return 1;
+        }
 
         std::cout << "(Total carrots before exchange = total carrots after echange)\n";
         std::cout << "Total carrots before exchange: " << total_before << std::endl;
         std::cout << "Total carrots after exchange: " << total_after << std::endl;
 
-        if (total_after != total_before) std::cerr << "[FAILED] Exchange test NOT passed\n";
+        if (total_after != total_before) {
+            std::cerr << "[FAILED] Exchange test NOT passed\n";
+            return 1;
+        }
         else std::cout << "[OK] Exchange test passed\n";
     }
 

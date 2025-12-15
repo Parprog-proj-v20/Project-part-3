@@ -25,6 +25,7 @@ int main(int argc, char** argv) {
 
         if (max_time > 10.0) {
             std::cout << "More than 10 seconds passed; possible deadlock!\n";
+            return 1;
         }
         else {
             std::cout << "[OK] No deadlock detected\n";

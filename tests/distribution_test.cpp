@@ -22,13 +22,19 @@ int main(int argc, char** argv) {
     if (r.getRank() == 0) {
         std::cout << "\n[ DISTRIBUTION TEST ]\n";
         if (after >= 0) std::cout << "Total carrots after is positive\n";
-        else std::cerr << "Total carrots after is negative\n";
+        else {
+            std::cerr << "Total carrots after is negative\n";
+            return 1;
+        }
 
         std::cout << "(Total carrots after = total carrots before + 300)\n";
         std::cout << "Total carrots before: " << total_before << std::endl;
         std::cout << "Total carrots after: " << total_after << std::endl;
 
-        if (total_after != total_before) std::cerr << "[FAILED] Distribution test NOT passed\n";
+        if (total_after != total_before) {
+            std::cerr << "[FAILED] Distribution test NOT passed\n";
+            return 1;
+        }
         else std::cout << "[OK] Distribution test passed\n";
     }
 
